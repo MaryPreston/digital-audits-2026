@@ -35,9 +35,18 @@ export default async function proxy(request: NextRequest) {
     }
   );
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  let user = null;
+  try {
+    const { data } = await supabase.auth.getUser();
+    user = data.user;
+  } catch {
+    // If Supabase is unreachable, fail open on public paths, fail closed on protected
+    if (!isPublic) {
+      const loginUrl = new URL("/login", request.nextUrl);
+      return NextResponse.redirect(loginUrl);
+    }
+    return response;
+  }
 
   // Logged-in user visiting /login → send to home
   const isAuthPage = AUTH_PAGES.some((p) => path.startsWith(p));
